@@ -1,0 +1,44 @@
+<idea-plugin>
+    <id>com.zhufan.smartinputlite</id>
+    <name>Caret IME</name>
+    <vendor url="https://github.com/fan389569">fan389569</vendor>
+
+    <description><![CDATA[
+        Switches the input method automatically based on where the caret is:
+        <b>English in code, Chinese in comments</b>, and the caret is tinted with the comment colour
+        so the current mode is visible at a glance.<br/>
+        <br/>
+        <b>Windows only.</b> It switches the IME by injecting keystrokes &mdash; a decoy <code>F24</code>
+        press/release followed by a <code>Shift</code> press/release. The IMM32 write API
+        (<code>ImmSetOpenStatus</code>) has no effect on TSF-based input methods such as Microsoft Pinyin,
+        so simulating keys is the only way to switch them. The <code>F24</code> decoy exists to stop
+        IntelliJ IDEA from mistaking the rapidly injected <code>Shift</code> keystrokes for a
+        "double Shift" (the Search Everywhere shortcut) when the caret sweeps back and forth across a
+        comment boundary.<br/>
+        <br/>
+        Tested only on <b>Windows 11 + IntelliJ IDEA 2025.2 + Microsoft Pinyin</b>.
+        Other platforms and input methods are untested.
+    ]]></description>
+
+    <version>1.0.0</version>
+
+    <change-notes><![CDATA[
+        <b>1.0.0</b>
+        <ul>
+            <li>First public release.</li>
+            <li>Automatically switches the input method based on the caret position &mdash; Chinese inside comments, English inside code.</li>
+            <li>Tints the caret with the comment colour while it sits inside a comment.</li>
+            <li>Injects an F24 decoy key so the switch never triggers IntelliJ IDEA's "double Shift" (Search Everywhere).</li>
+        </ul>
+    ]]></change-notes>
+
+    <idea-version since-build="252"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <editorFactoryListener implementation="com.zhufan.smartinputlite.CaretImeSwitcher"/>
+        <applicationService serviceImplementation="com.zhufan.smartinputlite.CaretImeService"/>
+    </extensions>
+</idea-plugin>

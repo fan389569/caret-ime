@@ -1,0 +1,9 @@
+# 默认交给 Git 判断文本/二进制
+* text=auto
+
+# Shell 脚本必须保持 LF：Windows 检出时若被转成 CRLF，Git Bash 执行会报 "\r: command not found"
+*.sh text eol=lf
+
+# 构建产物视为二进制
+*.jar binary
+*.zip binary

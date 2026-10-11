@@ -1,0 +1,21 @@
+# ---- 构建产物 ----
+build/
+out/
+dist/
+*.zip
+
+# ---- IDE ----
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ---- Gradle（当前构建不用 Gradle，保留标准项备用）----
+.gradle/
+
+# ---- 本地开发文档（含本机绝对路径，不公开）----
+CLAUDE.md
+
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
