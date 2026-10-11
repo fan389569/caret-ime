@@ -168,7 +168,7 @@ public class CaretImeSwitcher implements EditorFactoryListener {
             if (!same(want, caret.getVisualAttributes())) caret.setVisualAttributes(want);
         } catch (Throwable t) {
             colorBroken = true;   // 光标颜色只是锦上添花，坏了不影响切换
-            LOG.warn("Smart Input Lite: 设置光标颜色失败，已停用该功能", t);
+            LOG.warn("Caret IME: 设置光标颜色失败，已停用该功能", t);
         }
     }
 
