@@ -74,15 +74,6 @@ jar cfM CaretIME-1.1.0.zip -C dist CaretIME
 
 （用 JDK 自带的 `jar` 打包，产出的就是标准 zip，省得依赖 `zip` 命令。）
 
-## 反馈问题
-
-提 Issue 时请附上：
-
-- IntelliJ IDEA 版本（`Help` → `About`）
-- 你用的输入法名称（如「微软拼音」「搜狗拼音」……）
-- 该输入法的**中英切换键**设置（默认是 Shift，改过的话请说明）
-- 相关日志：`Help` → `Show Log in Explorer`，搜 `Caret IME`
-
 ---
 
 ## English Summary
