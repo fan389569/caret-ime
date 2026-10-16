@@ -5,8 +5,14 @@
 
     <description><![CDATA[
         Switches the input method automatically based on where the caret is:
-        <b>English in code, Chinese in comments</b>, and the caret is tinted with the comment colour
-        so the current mode is visible at a glance.<br/>
+        <b>English in code, Chinese in comments and in Chinese string literals</b>, and the caret is tinted
+        with the comment colour so the current mode is visible at a glance.<br/>
+        <br/>
+        String literals are judged by content &mdash; a literal that already contains Chinese, or a freshly
+        typed empty <code>""</code> with the caret between the quotes, counts as Chinese; an ASCII-only
+        literal such as <code>"userId"</code> is treated as code. If you switch the IME yourself, the plugin
+        backs off inside that comment or string until the caret moves elsewhere, and it never injects a
+        keystroke while an IME composition is still in flight.<br/>
         <br/>
         <b>Windows only.</b> It switches the IME by injecting keystrokes &mdash; a decoy <code>F24</code>
         press/release followed by a <code>Shift</code> press/release. The IMM32 write API
@@ -20,9 +26,15 @@
         Other platforms and input methods are untested.
     ]]></description>
 
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 
     <change-notes><![CDATA[
+        <b>1.1.0</b>
+        <ul>
+            <li>String literals now count as Chinese context: a literal that already contains Chinese, or a freshly typed empty <code>""</code> with the caret between the quotes, switches to Chinese. ASCII-only literals such as <code>"userId"</code> are still treated as code.</li>
+            <li>No more interference while you type: the plugin now detects an in-progress IME composition and does not inject any keystroke, so typing Chinese is never interrupted.</li>
+            <li>The plugin now backs off when you switch the IME yourself &mdash; it stops switching inside that comment or string until the caret moves elsewhere.</li>
+        </ul>
         <b>1.0.0</b>
         <ul>
             <li>First public release.</li>

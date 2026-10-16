@@ -65,6 +65,20 @@ final class Ime {
     private static Boolean assumedState;
     private static long assumedUntil;
 
+    /** 我们最后一次认可的中英状态（切成功的，或本来就已经达标的），以及最后一次真正注入按键的时刻。 */
+    private static Boolean enforced;
+    private static long enforcedAt;
+
+    /**
+     * 注入按键后要等这么久，才允许把"状态和记录对不上"解读成用户手动切换。
+     * 必须留够回读验证的时间（350ms / 700ms 各一轮），否则一次切换失败会被误判成
+     * "用户自己切的"，插件就再也不切了。
+     */
+    private static final long USER_GRACE_MS = 1200;
+
+    /** 最近一次读状态走的是哪个 HWND，只给日志用。 */
+    private static String lastHow;
+
     private Ime() {}
 
     /**
@@ -79,8 +93,45 @@ final class Ime {
         desired = null;
         assumedState = null;
         assumedUntil = 0;
+        enforced = null;
+        enforcedAt = 0;
         mech = 0;
         mechRetryAfter = 0;
+    }
+
+    /**
+     * 用户是不是自己手动切了输入法、而且切到了和 target 相反的一边 —— 是的话插件该让位。
+     *
+     * 判据：当前状态既不是我们认可的（enforced），也不是我们刚设完还没生效的。
+     * 中英只有两种状态，而我们注入一次按键只可能有两种结果 —— 变成目标、或者压根没变，
+     * 所以"状态变了又不是我们干的"只可能是用户干的。（切换失败的情况由回读验证兜底：
+     * 机制全挂时会把 enforced 清空，回到"不知道"而不是"认定是用户"。）
+     */
+    static boolean userTookOver(boolean target) {
+        if (broken || enforced == null) return false;
+        if (System.currentTimeMillis() - enforcedAt < USER_GRACE_MS) return false;
+        Boolean cur = currentChinese();
+        return cur != null && !cur.equals(enforced) && cur != target;
+    }
+
+    /** 直接问系统当前是不是中文模式；拿不到输入法上下文返回 null。 */
+    private static Boolean currentChinese() {
+        try {
+            Ctx ctx = findContext();
+            if (ctx == null) {
+                LOG.warn("Caret IME: 拿不到输入法上下文 | " + dumpHwnds());
+                return null;
+            }
+            lastHow = ctx.how;
+            try {
+                return Imm32.INSTANCE.ImmGetOpenStatus(ctx.himc);
+            } finally {
+                Imm32.INSTANCE.ImmReleaseContext(ctx.hwnd, ctx.himc);
+            }
+        } catch (Throwable t) {
+            LOG.warn("Caret IME: 读输入法状态异常", t);
+            return null;
+        }
     }
 
     /** chinese=true 切中文模式；false 切英文模式（英文标点）。 */
@@ -94,22 +145,18 @@ final class Ime {
                 cur = assumedState;               // 输入法还没跟上，以自己记录为准
                 how = "沿用上次记录";
             } else {
-                Ctx ctx = findContext();
-                if (ctx == null) {
-                    LOG.warn("Caret IME: 拿不到输入法上下文 | " + dumpHwnds());
-                    return;
-                }
-                try {
-                    cur = Imm32.INSTANCE.ImmGetOpenStatus(ctx.himc);
-                } finally {
-                    Imm32.INSTANCE.ImmReleaseContext(ctx.hwnd, ctx.himc);
-                }
+                Boolean read = currentChinese();
+                if (read == null) return;
+                cur = read;
                 assumedState = cur;
-                how = ctx.how;
+                how = lastHow;
             }
 
             desired = chinese;                     // 回读验证以此为准
-            if (cur == chinese) return;            // 已达标，什么都不做
+            if (cur == chinese) {
+                enforced = chinese;                // 这个状态是我们认可的
+                return;                            // 已达标，什么都不做
+            }
 
             if (mech >= MECHS.length) {            // 上次全挂了：等冷却结束再从头试，不能永久放弃
                 if (now < mechRetryAfter) return;
@@ -119,6 +166,8 @@ final class Ime {
             tapKey(mech == 0 ? new byte[]{VK_SHIFT} : new byte[]{VK_CONTROL, VK_SPACE});
             assumedState = chinese;
             assumedUntil = now + SETTLE_MS;
+            enforced = chinese;
+            enforcedAt = now;
             LOG.info("Caret IME: [" + MECHS[mech] + "] "
                     + (cur ? "中" : "英") + " -> " + (chinese ? "中" : "英") + " | " + how);
             scheduleVerify(0);
@@ -168,6 +217,7 @@ final class Ime {
             LOG.warn("Caret IME: [" + MECHS[mech] + "] 没生效");
             assumedState = null;                   // 自己记的也不可信了，下次重新读
             assumedUntil = 0;
+            enforced = null;                       // 状态对不上是我们没切成功，别赖到用户头上
             mech++;
             if (mech < MECHS.length) {
                 LOG.info("Caret IME: 降级为 [" + MECHS[mech] + "]");

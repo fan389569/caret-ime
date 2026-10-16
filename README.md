@@ -2,16 +2,28 @@
 
 <!-- TODO: 在此放演示 GIF -->
 
-光标落在**注释**里自动切到中文输入法，落在**代码**里自动切回英文输入法，同时把光标染成注释色，一眼就能看出当前是哪种模式。
+光标落在**注释**或**要写中文的字符串**里，自动切到中文输入法；落在**代码**里，自动切回英文。光标还会染成注释色，一眼就能看出当前是哪种模式。
 
 一个极简的、Windows 专用的 IntelliJ IDEA 插件。
 
 ## 功能
 
-- 光标在注释里 → 自动切中文输入法，并把光标染成注释色
-- 光标在代码里 → 自动切英文输入法，光标恢复原色
+- **注释里 → 中文输入法**，光标染成注释色
+- **字符串字面量里 → 看内容**：
+  - 已经写了中文的（`"你好"`）→ 中文
+  - 刚打出一对空引号、光标夹在中间（`"|"`）→ 中文，摆明是要往里面写东西
+  - 纯 ASCII 的串（`"userId"`、SQL 片段）→ 按代码处理，用英文，免得写英文串时被反复掰回中文
+  - 文本块（`"""…"""`）同理
+- **代码里 → 英文输入法**，光标恢复原色
+- **你手动切过输入法，插件会让位**：在当前这条注释 / 这个字符串里不再抢，等你移到别处再恢复自动切换
+- **打字打到一半不插手**：输入法候选串还没上屏时，插件不会注入任何按键，不会打断你正在敲的字
 - 生效的文件类型：`java` / `kt` / `kts` / `groovy` / `yml` / `yaml` / `properties` / `sql`
-- 切换后会回读校验；万一没生效会降级到备选切换方式，并在一段时间后自动重试
+
+## 安装
+
+1. 到 [Releases](../../releases) 下载最新的 `.zip`
+2. IDEA 里打开 `Settings` → `Plugins` → 右上角齿轮 ⚙ → `Install Plugin from Disk...`
+3. 选中刚下载的 zip，重启 IDEA
 
 ## 测试环境
 
@@ -19,33 +31,15 @@
 
 - Windows 11
 - IntelliJ IDEA 2025.2
-- 微软拼音（Windows 内置，属于 TSF 输入法）
+- 微软拼音（Windows 内置）
 
 其他操作系统、其他输入法均**未测试**。
 
-## 工作原理
+## 它是怎么切的
 
-### 为什么必须模拟按键
+微软拼音这类 TSF 输入法没有可用的写入 API，所以插件只能**模拟按键**：先垫一个空键 `F24`，再发一对 `Shift` 按下 / 抬起。
 
-Windows 输入法的中/英状态，正统写法是用 IMM32 的 `ImmSetOpenStatus` / `ImmSetConversionStatus` 直接设置。但对微软拼音这类 **TSF 输入法**，这两个写入接口一律返回 `FALSE`、状态纹丝不动（已用探针复核确认）。
-
-唯一有效的办法是**模拟按键**。微软拼音默认用「单独按一下 Shift」切换中英，所以插件用 `keybd_event` 注入一对 Shift 按下 / 抬起。
-
-### 为什么要先垫一个 F24
-
-只注入 Shift 会撞上 IDEA 的另一个机制：**双击 Shift 会弹出 Search Everywhere**。
-
-用鼠标拖选、光标快速扫过注释与代码的交界时，插件会连着注入很多次 Shift，两次之间只隔几十毫秒。IDEA 分不清这是人按的还是程序打的，就把它判成了「双击 Shift」。
-
-修法是每次注入 Shift 之前，先垫一个完整的 **F24 按下 / 抬起**：
-
-```
-F24↓ F24↑ Shift↓ Shift↑
-```
-
-F24 是个现实中不存在、也没人会绑定的空键码。IDEA 判定双击 Shift 的规则是「两次 Shift 之间不能夹别的键」，F24 一插进去，这个条件就永远凑不齐了。
-
-输入法那边完全不受影响 —— 按键是先经过输入法、再传给应用的。输入法照样收到干净的 Shift，中英切换照做。**F24 只用来骗 IDEA，不打扰输入法。**
+垫 `F24` 是为了不让 IDEA 把你拖选时连发的 `Shift` 误判成「双击 Shift」（会弹出 Search Everywhere）。`F24` 现实中不存在、也没人会绑定，输入法那边完全不受影响。
 
 ## 副作用与风险
 
@@ -58,13 +52,6 @@ F24 是个现实中不存在、也没人会绑定的空键码。IDEA 判定双�
 - 只验证过**微软拼音**。其他输入法（尤其是非 TSF 的老式 IME）行为未知。
 - 如果你把输入法的**中英切换键改过**（改成了不是默认 Shift 的键），插件不会工作。
 - 只对上面列出的文件类型生效。
-- 切换用「模拟按键」实现，所以严格来说不是零副作用，见上面的风险说明。
-
-## 安装
-
-1. 到 [Releases](../../releases) 下载最新的 `.zip`
-2. IDEA 里打开 `Settings` → `Plugins` → 右上角齿轮 ⚙ → `Install Plugin from Disk...`
-3. 选中刚下载的 zip，重启 IDEA
 
 ## 从源码构建
 
@@ -82,7 +69,7 @@ bash build.sh
 ```bash
 mkdir -p dist/CaretIME/lib
 cp build/CaretIME.jar dist/CaretIME/lib/
-jar cfM CaretIME-1.0.0.zip -C dist CaretIME
+jar cfM CaretIME-1.1.0.zip -C dist CaretIME
 ```
 
 （用 JDK 自带的 `jar` 打包，产出的就是标准 zip，省得依赖 `zip` 命令。）
@@ -100,8 +87,8 @@ jar cfM CaretIME-1.0.0.zip -C dist CaretIME
 
 ## English Summary
 
-**Caret IME** is a minimal, Windows-only IntelliJ IDEA plugin that switches the input method based on the caret position — Chinese inside comments, English inside code — and tints the caret with the comment colour.
+**Caret IME** is a minimal, Windows-only IntelliJ IDEA plugin that switches the input method based on where the caret is: Chinese inside comments and inside Chinese string literals, English inside code. The caret is tinted with the comment colour so you can tell the current mode at a glance. If you switch the IME yourself, it backs off inside that comment or string until you move elsewhere, and it never interrupts an IME composition that is still in progress.
 
-It switches the IME by injecting keystrokes, because the Windows IMM32 write API has no effect on TSF-based input methods such as Microsoft Pinyin. To avoid triggering IDEA's "double Shift" (Search Everywhere) when the caret sweeps rapidly across a comment boundary, every switch first taps a decoy `F24` key, which resets IDEA's double-modifier-click detector without affecting the IME.
+It switches the IME by injecting keystrokes, because the IMM32 write API has no effect on TSF-based input methods such as Microsoft Pinyin. A decoy `F24` press is sent first so that the rapidly injected `Shift` keystrokes are never mistaken for a "double Shift" (Search Everywhere).
 
 Tested only on Windows 11 + IntelliJ IDEA 2025.2 + Microsoft Pinyin. Licensed under MIT.
